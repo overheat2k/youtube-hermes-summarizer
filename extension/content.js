@@ -269,15 +269,7 @@
       return;
     }
 
-    // Get settings
-    const result = await chrome.storage.local.get(STORAGE_KEY);
-    const settings = result[STORAGE_KEY];
-    if (!settings?.apiUrl || !settings?.apiKey) {
-      createToast('请先在扩展弹窗中配置 Hermes API 地址和密钥', 'error');
-      return;
-    }
-
-    // Show panel with loading
+    // 1. Show panel IMMEDIATELY — before any async operation
     let panel = document.getElementById('hermes-summary-panel');
     if (panel) panel.remove();
 
@@ -297,7 +289,15 @@
       if (btn) btn.disabled = false;
     };
 
+    // 2. Now do async work
     try {
+      // Read settings
+      const result = await chrome.storage.local.get(STORAGE_KEY);
+      const settings = result[STORAGE_KEY];
+      if (!settings?.apiUrl || !settings?.apiKey) {
+        throw new Error('请先在扩展弹窗中配置 Hermes API 地址和密钥');
+      }
+
       const summary = await callHermesAPI(videoInfo);
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
@@ -307,7 +307,7 @@
       loadingEl.style.display = 'none';
       errorEl.style.display = 'block';
       errorEl.textContent = err.message;
-      createToast(err.message, 'error');
+      console.error('[Hermes Summarizer]', err.message);
     } finally {
       if (btn) btn.disabled = false;
     }
