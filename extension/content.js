@@ -30,8 +30,11 @@
     panel.id = 'hermes-summary-panel';
     panel.innerHTML = `
       <div id="hermes-summary-header">
-        <span id="hermes-summary-title">Hermes 总结</span>
-        <button id="hermes-summary-close">&times;</button>
+        <span id="hermes-summary-title">✧ Hermes 总结</span>
+        <div class="hermes-header-actions">
+          <button id="hermes-summary-reset-pos" title="重置位置">⟲</button>
+          <button id="hermes-summary-close">&times;</button>
+        </div>
       </div>
       <div id="hermes-summary-body">
         <div id="hermes-summary-loading">
@@ -42,6 +45,7 @@
         <div id="hermes-summary-content" style="display:none;"></div>
         <div id="hermes-summary-error" style="display:none;"></div>
       </div>
+      <div id="hermes-summary-resize-handle">↘</div>
     `;
     return panel;
   }
@@ -52,6 +56,72 @@
     toast.textContent = message;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 4000);
+  }
+
+  // --- Drag & Resize ---
+
+  function makeDraggable(panel) {
+    const header = panel.querySelector('#hermes-summary-header');
+    let isDragging = false;
+    let startX, startY, origLeft, origTop;
+
+    function onStart(e) {
+      // Only drag on header, not on buttons
+      if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+      isDragging = true;
+      panel.classList.add('hermes-dragging');
+
+      const rect = panel.getBoundingClientRect();
+      // Convert fixed position to left/top
+      origLeft = rect.left;
+      origTop = rect.top;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      // Remove right/bottom, use left/top
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.left = origLeft + 'px';
+      panel.style.top = origTop + 'px';
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onEnd);
+    }
+
+    function onMove(e) {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      panel.style.left = (origLeft + dx) + 'px';
+      panel.style.top = (origTop + dy) + 'px';
+    }
+
+    function onEnd() {
+      isDragging = false;
+      panel.classList.remove('hermes-dragging');
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onEnd);
+    }
+
+    header.addEventListener('mousedown', onStart);
+  }
+
+  function setupPanelInteractions(panel) {
+    // Drag
+    makeDraggable(panel);
+
+    // Reset position
+    const resetBtn = panel.querySelector('#hermes-summary-reset-pos');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        panel.style.left = 'auto';
+        panel.style.right = '24px';
+        panel.style.top = '80px';
+        panel.style.bottom = 'auto';
+        panel.style.width = '420px';
+        panel.style.height = 'auto';
+      });
+    }
   }
 
   // --- Styles ---
@@ -92,7 +162,10 @@
       top: 80px;
       right: 24px;
       width: 420px;
-      max-height: calc(100vh - 160px);
+      max-width: 90vw;
+      min-width: 280px;
+      max-height: calc(100vh - 40px);
+      min-height: 200px;
       background: #fff;
       border-radius: 16px;
       box-shadow: 0 8px 32px rgba(0,0,0,0.18);
@@ -102,6 +175,13 @@
       overflow: hidden;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       animation: hermes-slideIn 0.3s ease-out;
+      resize: both;
+    }
+    #hermes-summary-panel.hermes-dragging {
+      user-select: none;
+      opacity: 0.95;
+      transition: none;
+      animation: none;
     }
     @keyframes hermes-slideIn {
       from { transform: translateX(30px); opacity: 0; }
@@ -117,23 +197,37 @@
       color: #fff;
       font-size: 15px;
       font-weight: 600;
+      cursor: grab;
     }
-    #hermes-summary-close {
+    #hermes-summary-header:active { cursor: grabbing; }
+    .hermes-header-actions {
+      display: flex;
+      gap: 4px;
+      align-items: center;
+    }
+    .hermes-header-actions button {
       background: none;
       border: none;
       color: #fff;
-      font-size: 22px;
+      font-size: 18px;
       cursor: pointer;
       opacity: 0.8;
-      padding: 0 4px;
+      padding: 0 6px;
       line-height: 1;
+      border-radius: 4px;
+      transition: background 0.15s;
     }
-    #hermes-summary-close:hover { opacity: 1; }
+    .hermes-header-actions button:hover {
+      opacity: 1;
+      background: rgba(255,255,255,0.15);
+    }
+    #hermes-summary-close { font-size: 22px; }
 
     #hermes-summary-body {
       padding: 18px;
       overflow-y: auto;
       flex: 1;
+      min-height: 0;
     }
 
     #hermes-summary-loading {
@@ -232,6 +326,24 @@
       font-size: 13px;
       line-height: 1.5;
     }
+
+    #hermes-summary-resize-handle {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 24px;
+      height: 24px;
+      font-size: 12px;
+      color: #aaa;
+      display: flex;
+      align-items: flex-end;
+      justify-content: flex-end;
+      padding: 2px;
+      cursor: nwse-resize;
+      pointer-events: auto;
+      z-index: 1;
+    }
+    #hermes-summary-resize-handle:hover { color: #667eea; }
 
     .hermes-toast {
       position: fixed;
@@ -449,6 +561,7 @@ Output format:
     if (panel) panel.remove();
     panel = createPanel();
     document.body.appendChild(panel);
+    setupPanelInteractions(panel);
 
     const btn = document.getElementById('hermes-summarize-btn');
     if (btn) btn.disabled = true;
