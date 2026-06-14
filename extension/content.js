@@ -259,54 +259,28 @@
     }
 
     const url = `${settings.apiUrl.replace(/\/+$/, '')}/v1/chat/completions`;
+    const model = settings.model || 'hermes';
 
-    const systemPrompt = `你是一个专业的 YouTube 视频总结助手。
+    const systemPrompt = `You are a YouTube video summarizer. Summarize videos in Chinese (Simplified).
 
-## 你的任务
-用户会给你一个 YouTube 视频链接，你需要：
-1. 获取该视频的字幕/转录文本
-2. 分析内容并生成一份详细、结构化的总结报告
-
-## 如何获取字幕
-使用 python3 运行以下命令获取字幕：
+How to get subtitles:
 \`\`\`bash
-python3 /Users/alexmac/.hermes/skills/media/youtube-content/scripts/fetch_transcript.py "视频URL" --text-only --timestamps
+python3 /Users/alexmac/.hermes/skills/media/youtube-content/scripts/fetch_transcript.py "URL" --text-only --timestamps
 \`\`\`
+Or use youtube_transcript_api if the script is not available.
 
-如果上述脚本不存在，则尝试：
-\`\`\`bash
-python3 -c "from youtube_transcript_api import get_transcript; t=get_transcript('VIDEO_ID'); [print(f'{s[\\"start\\"]:.0f}s: {s[\\"text\\"]}') for s in t]"
-\`\`\`
+Output format:
+### 📋 Overview
+### 🎯 Key Points (with timestamps)
+### 💡 Main Arguments
+### 📝 Details
+### 🔑 One-line Summary`;
 
-如果字幕无法获取，则用 web_search 或 web_extract 获取视频描述和评论作为替代。
+    const userMessage = `Please summarize this YouTube video in Chinese:
 
-## 总结格式
-请使用中文（简体）输出，格式如下：
-
-### 📋 视频概览
-- 标题：[视频标题]
-- 频道/类型：[简要描述]
-
-### 🎯 核心要点
-- 按时间顺序列出主要内容，每条附上时间戳
-- 每个要点用 **粗体** 标注主题
-
-### 💡 关键观点/论据
-- 列出视频中最重要的观点或论据
-
-### 📝 详细内容
-- 按章节或主题分段，每段附时间戳
-
-### 🔑 一句话总结
-- 用一句话概括整个视频的核心信息
-
-请确保总结全面、准确、有深度。`;
-
-    const userMessage = `请详细总结这个 YouTube 视频：
-
-标题：${videoInfo.title}
-${videoInfo.channel ? `频道：${videoInfo.channel}` : ''}
-链接：${videoInfo.url}`;
+Title: ${videoInfo.title}
+${videoInfo.channel ? `Channel: ${videoInfo.channel}` : ''}
+URL: ${videoInfo.url}`;
 
     console.log('[Hermes] Fetching:', url);
 
@@ -321,7 +295,7 @@ ${videoInfo.channel ? `频道：${videoInfo.channel}` : ''}
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        model: 'hermes',
+        model: model,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage }
@@ -335,6 +309,10 @@ ${videoInfo.channel ? `频道：${videoInfo.channel}` : ''}
     if (!response.ok) {
       let errMsg = `HTTP ${response.status}`;
       try { const err = await response.json(); errMsg = err.error?.message || errMsg; } catch {}
+      // Detect DeepSeek content filter
+      if (errMsg.includes('Content Exists Risk')) {
+        errMsg += '\n\n💡 DeepSeek 内容审查拦截了此视频。请在扩展弹出中设置模型为：\nopenrouter/anthropic/claude-sonnet-4\n\n然后用 OpenRouter API 密钥。';
+      }
       throw new Error(`Hermes API 请求失败: ${errMsg}`);
     }
 
