@@ -163,21 +163,66 @@
       line-height: 1.7;
       color: #222;
       font-size: 14px;
-      white-space: pre-wrap;
+      white-space: normal;
       word-wrap: break-word;
     }
-    #hermes-summary-content h1,
-    #hermes-summary-content h2,
-    #hermes-summary-content h3 {
-      margin-top: 16px;
-      margin-bottom: 8px;
+    #hermes-summary-content h1 {
+      font-size: 18px;
+      margin: 16px 0 8px;
       color: #333;
+      border-bottom: 2px solid #667eea;
+      padding-bottom: 4px;
     }
-    #hermes-summary-content h2 { font-size: 16px; border-bottom: 1px solid #eee; padding-bottom: 4px; }
-    #hermes-summary-content h3 { font-size: 14px; }
-    #hermes-summary-content ul { padding-left: 20px; }
-    #hermes-summary-content li { margin-bottom: 4px; }
-    #hermes-summary-content strong { color: #111; }
+    #hermes-summary-content h2 {
+      font-size: 16px;
+      margin: 14px 0 6px;
+      color: #444;
+      border-bottom: 1px solid #e0e0e0;
+      padding-bottom: 3px;
+    }
+    #hermes-summary-content h3 {
+      font-size: 15px;
+      margin: 12px 0 4px;
+      color: #555;
+    }
+    #hermes-summary-content p {
+      margin: 6px 0;
+    }
+    #hermes-summary-content ul {
+      padding-left: 20px;
+      margin: 6px 0;
+    }
+    #hermes-summary-content li {
+      margin-bottom: 3px;
+    }
+    #hermes-summary-content strong {
+      color: #111;
+    }
+    #hermes-summary-content code {
+      background: #f0f0f0;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-family: 'SF Mono', Menlo, monospace;
+    }
+    #hermes-summary-content pre {
+      background: #f5f5f5;
+      padding: 10px 14px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 12px;
+      line-height: 1.5;
+      margin: 8px 0;
+    }
+    #hermes-summary-content pre code {
+      background: none;
+      padding: 0;
+    }
+    #hermes-summary-content hr {
+      border: none;
+      border-top: 1px solid #e0e0e0;
+      margin: 12px 0;
+    }
 
     #hermes-summary-error {
       color: #d32f2f;
@@ -215,7 +260,11 @@
       #hermes-summary-content h1,
       #hermes-summary-content h2,
       #hermes-summary-content h3 { color: #eee; }
-      #hermes-summary-content h2 { border-bottom-color: #333; }
+      #hermes-summary-content h1 { border-bottom-color: #667eea; }
+      #hermes-summary-content h2 { border-bottom-color: #444; }
+      #hermes-summary-content code { background: #2d2d2d; }
+      #hermes-summary-content pre { background: #2a2a2a; }
+      #hermes-summary-content hr { border-top-color: #444; }
       .hermes-spinner { border-color: #444; border-top-color: #667eea; }
       #hermes-summary-loading { color: #999; }
     }
@@ -248,6 +297,60 @@
       title,
       channel
     };
+  }
+
+  // --- Lightweight Markdown Renderer ---
+
+  function renderMarkdown(text) {
+    // Escape HTML first
+    let html = text
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+
+    // Code blocks (```...```)
+    html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (_, lang, code) => {
+      return `<pre><code>${code.trim()}</code></pre>`;
+    });
+
+    // Inline code (`code`)
+    html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+    // Headers (### then ## then #)
+    html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+
+    // Bold
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    // Italic
+    html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+    // Unordered lists
+    html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+    // Horizontal rules
+    html = html.replace(/^---$/gm, '<hr>');
+
+    // Line breaks (double newline = paragraph)
+    html = html.replace(/\n\n/g, '</p><p>');
+
+    // Single line breaks
+    html = html.replace(/\n/g, '<br>');
+
+    // Wrap in paragraph if not starting with block element
+    if (!html.startsWith('<h') && !html.startsWith('<p') && !html.startsWith('<ul') && !html.startsWith('<pre')) {
+      html = '<p>' + html + '</p>';
+    }
+
+    // Clean up nested paragraphs from list items
+    html = html.replace(/<li><p>/g, '<li>');
+    html = html.replace(/<\/p><\/li>/g, '</li>');
+    html = html.replace(/<\/li><br>/g, '</li>');
+
+    return html;
   }
 
   async function fetchTranscript(videoId) {
@@ -375,7 +478,7 @@ Output format:
       const summary = await summarizeTranscript(transcript, videoInfo);
       loadingEl.style.display = 'none';
       contentEl.style.display = 'block';
-      contentEl.textContent = summary;
+      contentEl.innerHTML = renderMarkdown(summary);
       createToast('总结完成 ✅', 'success');
     } catch (err) {
       loadingEl.style.display = 'none';
