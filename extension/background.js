@@ -117,32 +117,51 @@ python3 -c "from youtube_transcript_api import get_transcript; t=get_transcript(
 ${videoInfo.channel ? `频道：${videoInfo.channel}` : ''}
 链接：${videoInfo.url}`;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${settings.apiKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
+  console.log('[Hermes] Fetching:', url, 'Key:', settings.apiKey);
+
+  // Use XMLHttpRequest instead of fetch — more reliable from SW
+  const result = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Authorization', `Bearer ${settings.apiKey}`);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.timeout = 180000; // 3 min
+
+    xhr.onload = function() {
+      console.log('[Hermes] Response status:', xhr.status);
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          resolve(data);
+        } catch (e) {
+          reject(new Error(`JSON 解析失败: ${e.message}`));
+        }
+      } else {
+        let errMsg = `HTTP ${xhr.status}`;
+        try {
+          const err = JSON.parse(xhr.responseText);
+          errMsg = err.error?.message || errMsg;
+        } catch {}
+        reject(new Error(`Hermes API 请求失败: ${errMsg}`));
+      }
+    };
+    xhr.onerror = function() {
+      console.error('[Hermes] Network error, readyState:', xhr.readyState);
+      reject(new Error(`网络错误: 无法连接到 ${url}`));
+    };
+    xhr.ontimeout = function() {
+      reject(new Error('请求超时 (180s)'));
+    };
+    xhr.send(JSON.stringify({
       model: 'hermes',
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userMessage }
       ]
-    })
+    }));
   });
 
-  if (!response.ok) {
-    let errMsg = `HTTP ${response.status}`;
-    try {
-      const err = await response.json();
-      errMsg = err.error?.message || errMsg;
-    } catch {}
-    throw new Error(`Hermes API 请求失败: ${errMsg}`);
-  }
-
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
+  const content = result.choices?.[0]?.message?.content;
   if (!content) throw new Error('Hermes 返回为空');
   return content;
 }

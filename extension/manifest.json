@@ -9,6 +9,7 @@
 
   "host_permissions": [
     "http://127.0.0.1:8642/*",
+    "http://localhost:8642/*",
     "https://www.youtube.com/*"
   ],
 
