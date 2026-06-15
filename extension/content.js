@@ -480,8 +480,8 @@
     if (!settings?.apiKey) throw new Error('请先在扩展弹窗中配置 API 密钥');
 
     const serverUrl = 'http://127.0.0.1:8643';
-    const apiBaseUrl = settings.apiBaseUrl || 'https://openrouter.ai/api/v1';
-    const model = settings.model || 'openai/gpt-4o-mini';
+    const apiBaseUrl = settings.apiBaseUrl || 'https://api.deepseek.com/v1';
+    const model = settings.model || 'deepseek-chat';
 
     // Strategy 1: Use the standalone /summarize endpoint
     try {

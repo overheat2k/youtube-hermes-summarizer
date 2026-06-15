@@ -13,9 +13,9 @@ const testBtn = document.getElementById('testBtn');
 const statusMsg = document.getElementById('statusMsg');
 
 const DEFAULTS = {
-  apiBaseUrl: 'https://openrouter.ai/api/v1',
+  apiBaseUrl: 'https://api.deepseek.com/v1',
   apiKey: '',
-  model: 'openai/gpt-4o-mini'
+  model: 'deepseek-chat'
 };
 
 // --- Load ---
