@@ -109,17 +109,28 @@ class SummarizerHandler(http.server.BaseHTTPRequestHandler):
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip()
 
-        # Fallback: use youtube_transcript_api
+        # Fallback: use youtube_transcript_api with multiple languages
         from youtube_transcript_api import YouTubeTranscriptApi
         api = YouTubeTranscriptApi()
-        transcript = api.fetch(video_id)
-        lines = []
-        for entry in transcript:
-            start = int(entry.start)
-            minutes = start // 60
-            seconds = start % 60
-            lines.append(f"{minutes}:{seconds:02d} {entry.text}")
-        return "\n".join(lines)
+        # Try common languages, fallback to any available
+        for langs in (['zh-Hans', 'zh', 'en', 'ja'], None):
+            try:
+                if langs is None:
+                    # Fetch any available language
+                    transcript = api.fetch(video_id)
+                else:
+                    transcript = api.fetch(video_id, languages=langs)
+                lines = []
+                for entry in transcript:
+                    start = int(entry.start)
+                    minutes = start // 60
+                    seconds = start % 60
+                    lines.append(f"{minutes}:{seconds:02d} {entry.text}")
+                return "\n".join(lines)
+            except Exception:
+                if langs is None:
+                    raise
+        raise
 
     # ── LLM call ───────────────────────────────────────────
 
