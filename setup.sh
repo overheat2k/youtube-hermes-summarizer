@@ -32,12 +32,12 @@ if ! command -v python3 &>/dev/null; then
 fi
 echo -e "${GREEN}✓ Python3 已安装${NC}"
 
-# Check youtube-transcript-api
+# Check youtube-transcript-api and certifi
 if ! python3 -c "import youtube_transcript_api" 2>/dev/null; then
-  echo -e "${YELLOW}  安装 youtube-transcript-api...${NC}"
-  python3 -m pip install youtube-transcript-api -q
+  echo -e "${YELLOW}  安装依赖...${NC}"
+  python3 -m pip install youtube-transcript-api certifi -q
 fi
-echo -e "${GREEN}✓ youtube-transcript-api 已就绪${NC}"
+echo -e "${GREEN}✓ Python 依赖已就绪${NC}"
 
 # --- 2. Enable Hermes API Server ---
 echo ""
@@ -84,8 +84,6 @@ echo ""
 echo -e "${YELLOW}[4/4] 启动字幕服务器...${NC}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-
-# Install launchd plist for auto-restart
 PLIST_SRC="$SCRIPT_DIR/com.hermes.youtube-transcript-server.plist"
 PLIST_DST="$HOME/Library/LaunchAgents/com.hermes.youtube-transcript-server.plist"
 
@@ -94,8 +92,8 @@ launchctl unload "$PLIST_DST" 2>/dev/null || true
 pkill -f transcript_server.py 2>/dev/null || true
 sleep 1
 
-# Patch plist with actual paths
-sed "s|TRANSCRIPT_SERVER_PATH|$SCRIPT_DIR/transcript_server.py|g; s|HOME_DIR|$HOME|g" "$PLIST_SRC" > "$PLIST_DST"
+# Install plist with real paths
+sed "s|__SCRIPT_DIR__|$SCRIPT_DIR|g; s|__HOME__|$HOME|g" "$PLIST_SRC" > "$PLIST_DST"
 
 # Load launchd job
 launchctl load "$PLIST_DST"
