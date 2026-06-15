@@ -79,27 +79,34 @@ else
   echo -e "${YELLOW}⚠ fetch_transcript.py 未找到，将使用备用方案${NC}"
 fi
 
-# Start transcript server (port 8643)
+# Start transcript server (port 8643) with launchd persistence
 echo ""
 echo -e "${YELLOW}[4/4] 启动字幕服务器...${NC}"
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-TRANSCRIPT_PID_FILE="/tmp/hermes_transcript_server.pid"
 
-# Kill existing if any
-if [ -f "$TRANSCRIPT_PID_FILE" ]; then
-  kill $(cat "$TRANSCRIPT_PID_FILE") 2>/dev/null || true
-  rm -f "$TRANSCRIPT_PID_FILE"
-fi
+# Install launchd plist for auto-restart
+PLIST_SRC="$SCRIPT_DIR/com.hermes.youtube-transcript-server.plist"
+PLIST_DST="$HOME/Library/LaunchAgents/com.hermes.youtube-transcript-server.plist"
 
-nohup python3 "$SCRIPT_DIR/transcript_server.py" > /tmp/hermes_transcript_server.log 2>&1 &
-echo $! > "$TRANSCRIPT_PID_FILE"
+# Kill old process
+launchctl unload "$PLIST_DST" 2>/dev/null || true
+pkill -f transcript_server.py 2>/dev/null || true
+sleep 1
+
+# Patch plist with actual paths
+sed "s|TRANSCRIPT_SERVER_PATH|$SCRIPT_DIR/transcript_server.py|g; s|HOME_DIR|$HOME|g" "$PLIST_SRC" > "$PLIST_DST"
+
+# Load launchd job
+launchctl load "$PLIST_DST"
 sleep 2
 
 if curl -sf http://127.0.0.1:8643/health >/dev/null 2>&1; then
-  echo -e "${GREEN}✓ 字幕服务器已启动 (端口 8643)${NC}"
+  echo -e "${GREEN}✓ 字幕服务器已启动 (端口 8643) — 开机自启${NC}"
 else
-  echo -e "${YELLOW}⚠ 字幕服务器启动中，稍后检查${NC}"
+  # Fallback: direct start
+  nohup python3 "$SCRIPT_DIR/transcript_server.py" > /tmp/hermes_transcript_server.log 2>&1 &
+  echo -e "${YELLOW}⚠ 直接启动字幕服务器 (PID $!)${NC}"
 fi
 
 # --- 5. Print instructions ---
