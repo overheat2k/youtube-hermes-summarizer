@@ -13,6 +13,8 @@ import urllib.request
 import sys
 import os
 import textwrap
+import ssl
+import certifi
 
 PORT = 8643
 
@@ -147,7 +149,8 @@ class SummarizerHandler(http.server.BaseHTTPRequestHandler):
         }
 
         req = urllib.request.Request(api_url, data=payload, headers=headers, method="POST")
-        with urllib.request.urlopen(req, timeout=300) as resp:
+        ssl_ctx = ssl.create_default_context(cafile=certifi.where())
+        with urllib.request.urlopen(req, context=ssl_ctx, timeout=300) as resp:
             result = json.loads(resp.read())
 
         content = result.get("choices", [{}])[0].get("message", {}).get("content")
