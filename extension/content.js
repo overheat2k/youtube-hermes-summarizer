@@ -554,7 +554,7 @@
     }
   }
 
-  // --- Inject Button ---
+  // --- Inject Button (with retry) ---
 
   function injectButton() {
     if (document.getElementById('hermes-summarize-btn')) return;
@@ -565,21 +565,38 @@
 
     let placed = false;
 
-    // Strategy 1: Insert into #above-the-fold after #bottom-row (2024+ YouTube)
+    // Strategy 1: Insert into #above-the-fold after #bottom-row
     const aboveFold = document.querySelector('#above-the-fold');
     if (aboveFold) {
+      // If #bottom-row exists, insert after it
       const bottomRow = aboveFold.querySelector('#bottom-row');
       if (bottomRow) {
         aboveFold.insertBefore(btn, bottomRow.nextSibling);
         placed = true;
       } else {
-        // Fallback: append to above-the-fold
-        aboveFold.appendChild(btn);
-        placed = true;
+        // Wait for YouTube to render, then insert
+        const observer = new MutationObserver(() => {
+          const br = aboveFold.querySelector('#bottom-row');
+          if (br && !document.getElementById('hermes-summarize-btn')) {
+            aboveFold.insertBefore(btn, br.nextSibling);
+            observer.disconnect();
+          }
+        });
+        observer.observe(aboveFold, { childList: true, subtree: true });
+        // Fallback timeout: just append to above-the-fold
+        setTimeout(() => {
+          const existingBtn = document.getElementById('hermes-summarize-btn');
+          if (existingBtn && !existingBtn.parentElement) {
+            observer.disconnect();
+            aboveFold.appendChild(existingBtn);
+            placed = true;
+          }
+        }, 5000);
+        return; // Will be placed by observer or timeout
       }
     }
 
-    // Strategy 2: Insert after ytd-video-primary-info-renderer (older YouTube)
+    // Strategy 2: Insert after primary info
     if (!placed) {
       const primaryInfo = document.querySelector('ytd-video-primary-info-renderer');
       if (primaryInfo && primaryInfo.parentElement) {
@@ -588,7 +605,7 @@
       }
     }
 
-    // Strategy 3: Insert after the video player
+    // Strategy 3: After the video player
     if (!placed) {
       const player = document.querySelector('#movie_player, #player-container, #player');
       if (player && player.parentElement) {
@@ -597,7 +614,7 @@
       }
     }
 
-    // Strategy 4: Last resort — before the comments section
+    // Strategy 4: Before comments
     if (!placed) {
       const comments = document.querySelector('#comments, ytd-comments');
       if (comments && comments.parentElement) {
@@ -609,19 +626,36 @@
   // --- Watch for YouTube navigation (SPA) ---
 
   function observePageChanges() {
-    // YouTube is a SPA — observe URL changes
+    function tryInject() {
+      // Clean old elements
+      document.getElementById('hermes-summarize-btn')?.remove();
+      document.getElementById('hermes-summary-panel')?.remove();
+      // Retry injection with backoff
+      injectButton();
+      // If not placed yet, retry
+      if (!document.getElementById('hermes-summarize-btn')) {
+        setTimeout(tryInject, 2000);
+      }
+    }
+
+    // YouTube fires yt-navigate-finish after SPA navigation
+    document.addEventListener('yt-navigate-finish', () => {
+      setTimeout(tryInject, 500);
+    });
+
+    // Also watch URL changes via popstate (back/forward)
+    window.addEventListener('popstate', () => {
+      setTimeout(tryInject, 1000);
+    });
+
+    // Fallback: MutationObserver for dynamic page transitions
     let lastUrl = location.href;
-    const observer = new MutationObserver(() => {
+    new MutationObserver(() => {
       if (location.href !== lastUrl) {
         lastUrl = location.href;
-        // Remove old elements
-        document.getElementById('hermes-summarize-btn')?.remove();
-        document.getElementById('hermes-summary-panel')?.remove();
-        // Re-inject after a short delay for page render
-        setTimeout(injectButton, 1500);
+        setTimeout(tryInject, 500);
       }
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
+    }).observe(document.body, { childList: true, subtree: true });
   }
 
   // --- Init ---
