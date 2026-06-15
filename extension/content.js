@@ -503,70 +503,9 @@
       const err = await resp.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${resp.status}`);
     } catch (err) {
-      // Strategy 2: Fallback — Hermes API
-      console.log('[Summarizer] Standalone failed, trying Hermes:', err.message);
-      return await summarizeWithHermes(videoInfo, settings);
+      // Standalone mode failed — show error directly
+      throw err;
     }
-  }
-
-  async function summarizeWithHermes(videoInfo, settings) {
-    const url = `${settings.apiUrl.replace(/\/+$/, '')}/v1/chat/completions`;
-    const model = settings.model || 'hermes';
-
-    const systemPrompt = 'You are a YouTube video summarizer. Provide detailed structured summaries in Chinese (Simplified).';
-
-    const userMessage = `Please summarize this YouTube video transcript in Chinese.
-
-Title: ${videoInfo.title}
-${videoInfo.channel ? `Channel: ${videoInfo.channel}` : ''}
-
-Transcript:
-${transcript}
-
-Output format:
-### 📋 视频概览
-### 🎯 核心要点（附时间戳）
-### 💡 关键观点
-### 📝 详细内容
-### 🔑 一句话总结`;
-
-    console.log('[Summarizer] Summarizing', transcript.length, 'chars...');
-
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 300000);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${settings.apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        model: model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userMessage }
-        ]
-      }),
-      signal: controller.signal
-    }).finally(() => clearTimeout(timeoutId));
-
-    console.log('[Summarizer] Status:', response.status);
-
-    if (!response.ok) {
-      let errMsg = `HTTP ${response.status}`;
-      try { const err = await response.json(); errMsg = err.error?.message || errMsg; } catch {}
-      if (errMsg.includes('Content Exists Risk')) {
-        errMsg += '\n\n💡 DeepSeek 内容审查拦截了此视频。\n请在扩展弹出中设置模型为：openrouter/anthropic/claude-sonnet-4\n并用 OpenRouter API 密钥。';
-      }
-      throw new Error(`Hermes API 请求失败: ${errMsg}`);
-    }
-
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content;
-    if (!content) throw new Error('Hermes 返回为空');
-    console.log('[Summarizer] Summary:', content.length, 'chars');
-    return content;
   }
 
   async function handleSummarize() {
