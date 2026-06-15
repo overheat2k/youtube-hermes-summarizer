@@ -39,7 +39,7 @@
       <div id="hermes-summary-body">
         <div id="hermes-summary-loading">
           <div class="hermes-spinner"></div>
-          <p>正在分析视频...</p>
+          <p>正在获取字幕并分析...</p>
           <p class="hermes-loading-hint">长视频可能需要 2-3 分钟</p>
         </div>
         <div id="hermes-summary-content" style="display:none;"></div>
