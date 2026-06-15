@@ -156,7 +156,8 @@ class SummarizerHandler(http.server.BaseHTTPRequestHandler):
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_msg}
-            ]
+            ],
+            "thinking": {"type": "disabled"}
         }).encode()
 
         headers = {
