@@ -481,7 +481,7 @@
 
     const serverUrl = 'http://127.0.0.1:8643';
     const apiBaseUrl = settings.apiBaseUrl || 'https://api.deepseek.com/v1';
-    const model = settings.model || 'deepseek-chat';
+    const model = settings.model || 'deepseek-v4-flash';
 
     // Strategy 1: Use the standalone /summarize endpoint
     try {

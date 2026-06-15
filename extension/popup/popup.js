@@ -15,7 +15,7 @@ const statusMsg = document.getElementById('statusMsg');
 const DEFAULTS = {
   apiBaseUrl: 'https://api.deepseek.com/v1',
   apiKey: '',
-  model: 'deepseek-chat'
+  model: 'deepseek-v4-flash'
 };
 
 // --- Load ---
