@@ -57,18 +57,60 @@ testBtn.addEventListener('click', async () => {
   const s = getSettings();
   testBtn.disabled = true;
   testBtn.innerHTML = '<span class="spinner"></span> 测试中...';
-  setStatus('正在连接总结服务器...', 'info');
+  setStatus('正在测试 AI 连接...', 'info');
 
+  // Step 1: check local server
   try {
     const resp = await fetch('http://127.0.0.1:8643/health', { signal: AbortSignal.timeout(5000) });
+    if (!resp.ok) {
+      setStatus('❌ 本地服务器 (端口 8643) 未运行', 'error');
+      testBtn.disabled = false;
+      testBtn.textContent = '测试连接';
+      return;
+    }
+  } catch {
+    setStatus('❌ 无法连接本地服务器 (端口 8643)', 'error');
+    testBtn.disabled = false;
+    testBtn.textContent = '测试连接';
+    return;
+  }
+
+  // Step 2: test AI API with a simple request
+  if (!s.apiKey) {
+    setStatus('❌ 请填写 API Key', 'error');
+    testBtn.disabled = false;
+    testBtn.textContent = '测试连接';
+    return;
+  }
+
+  try {
+    const apiUrl = `${s.apiBaseUrl.replace(/\/+$/, '')}/chat/completions`;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    const resp = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${s.apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: s.model || 'deepseek-v4-flash',
+        messages: [{ role: 'user', content: 'ping' }],
+        max_tokens: 5
+      }),
+      signal: controller.signal
+    }).finally(() => clearTimeout(timeoutId));
+
     if (resp.ok) {
-      const data = await resp.json();
-      setStatus(`✅ 服务器 ${data.version || 'v1'} 运行正常`, 'success');
+      setStatus('✅ 本地服务器 + AI 连接均正常', 'success');
     } else {
-      setStatus(`❌ HTTP ${resp.status}`, 'error');
+      let msg = `HTTP ${resp.status}`;
+      try { const e = await resp.json(); msg = e.error?.message || msg; } catch {}
+      setStatus(`❌ AI 接口返回错误: ${msg}`, 'error');
     }
   } catch (err) {
-    setStatus(`❌ 无法连接: ${err.message}`, 'error');
+    setStatus(`❌ AI 连接失败: ${err.message}`, 'error');
   } finally {
     testBtn.disabled = false;
     testBtn.textContent = '测试连接';

@@ -13,7 +13,8 @@
     "http://127.0.0.1:8642/*",
     "http://localhost:8642/*",
     "https://api.openai.com/*",
-    "https://openrouter.ai/*"
+    "https://openrouter.ai/*",
+    "https://api.deepseek.com/*"
   ],
 
   "action": {
