@@ -1,31 +1,41 @@
 // ============================================================
 // Hermes YouTube Summarizer — Popup Script
-// Settings: server URL, API key, model
+// Settings: server URL, API base URL, API key, model
 // ============================================================
 
 const STORAGE_KEY = 'hermes_youtube_settings';
 
-const apiUrlInput = document.getElementById('serverUrl');
+const serverUrlInput = document.getElementById('serverUrl');
+const apiBaseUrlInput = document.getElementById('apiBaseUrl');
 const apiKeyInput = document.getElementById('apiKey');
 const modelNameInput = document.getElementById('modelName');
 const saveBtn = document.getElementById('saveBtn');
 const testBtn = document.getElementById('testBtn');
 const statusMsg = document.getElementById('statusMsg');
 
-// --- Load saved settings ---
-(async function loadSettings() {
-  const result = await chrome.storage.local.get(STORAGE_KEY);
-  const s = result[STORAGE_KEY] || {};
-  apiUrlInput.value = s.serverUrl || 'http://127.0.0.1:8643';
+const DEFAULTS = {
+  serverUrl: 'http://127.0.0.1:8643',
+  apiBaseUrl: 'https://openrouter.ai/api/v1',
+  apiKey: '',
+  model: 'openai/gpt-4o-mini'
+};
+
+// --- Load ---
+(async function load() {
+  const r = await chrome.storage.local.get(STORAGE_KEY);
+  const s = r[STORAGE_KEY] || {};
+  serverUrlInput.value = s.serverUrl || DEFAULTS.serverUrl;
+  apiBaseUrlInput.value = s.apiBaseUrl || DEFAULTS.apiBaseUrl;
   apiKeyInput.value = s.apiKey || '';
-  modelNameInput.value = s.model || 'openrouter/openai/gpt-4o-mini';
+  modelNameInput.value = s.model || DEFAULTS.model;
 })();
 
 function getSettings() {
   return {
-    serverUrl: apiUrlInput.value.trim() || 'http://127.0.0.1:8643',
+    serverUrl: serverUrlInput.value.trim() || DEFAULTS.serverUrl,
+    apiBaseUrl: apiBaseUrlInput.value.trim() || DEFAULTS.apiBaseUrl,
     apiKey: apiKeyInput.value.trim() || '',
-    model: modelNameInput.value.trim() || 'openrouter/openai/gpt-4o-mini'
+    model: modelNameInput.value.trim() || DEFAULTS.model
   };
 }
 
@@ -39,7 +49,7 @@ function setStatus(msg, type) {
 saveBtn.addEventListener('click', async () => {
   const s = getSettings();
   if (!s.apiKey) {
-    setStatus('请输入 API 密钥', 'error');
+    setStatus('请输入 API Key', 'error');
     return;
   }
   await chrome.storage.local.set({ [STORAGE_KEY]: s });
@@ -79,6 +89,7 @@ function autoSave() {
   }, 800);
 }
 
-apiUrlInput.addEventListener('input', autoSave);
+serverUrlInput.addEventListener('input', autoSave);
+apiBaseUrlInput.addEventListener('input', autoSave);
 apiKeyInput.addEventListener('input', autoSave);
 modelNameInput.addEventListener('input', autoSave);

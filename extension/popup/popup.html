@@ -206,17 +206,24 @@
     <div class="section">
       <div class="section-title">AI 模型配置</div>
       <div style="margin-bottom:8px;">
-        <label for="apiKey">API 密钥</label>
-        <input type="password" id="apiKey" placeholder="OpenRouter 或 OpenAI API Key" />
+        <label for="apiBaseUrl">Base URL</label>
+        <input type="text" id="apiBaseUrl" placeholder="https://openrouter.ai/api/v1" />
         <div style="font-size:11px;color:#999;margin-top:2px;">
-          OpenRouter: 在 openrouter.ai/keys 获取
+          OpenAI 兼容接口地址
+        </div>
+      </div>
+      <div style="margin-bottom:8px;">
+        <label for="apiKey">API Key</label>
+        <input type="password" id="apiKey" placeholder="sk-..." />
+        <div style="font-size:11px;color:#999;margin-top:2px;">
+          OpenRouter / OpenAI / 其他兼容 API 的密钥
         </div>
       </div>
       <div style="margin-bottom:8px;">
         <label for="modelName">模型</label>
-        <input type="text" id="modelName" placeholder="openrouter/openai/gpt-4o-mini" />
+        <input type="text" id="modelName" placeholder="openai/gpt-4o-mini" />
         <div style="font-size:11px;color:#999;margin-top:2px;">
-          openrouter/&lt;模型名&gt; 或 openai/&lt;模型名&gt;
+          例: openai/gpt-4o-mini, anthropic/claude-sonnet-4, deepseek/deepseek-chat
         </div>
       </div>
       <div class="btn-group">

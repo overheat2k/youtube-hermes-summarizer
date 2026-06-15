@@ -479,10 +479,11 @@
     const settings = result[STORAGE_KEY];
     if (!settings?.apiKey) throw new Error('请先在扩展弹窗中配置 API 密钥');
 
-    const model = settings.model || 'openrouter/openai/gpt-4o-mini';
     const serverUrl = settings.serverUrl || 'http://127.0.0.1:8643';
+    const apiBaseUrl = settings.apiBaseUrl || 'https://openrouter.ai/api/v1';
+    const model = settings.model || 'openai/gpt-4o-mini';
 
-    // Strategy 1: Use the standalone /summarize endpoint (no Hermes needed)
+    // Strategy 1: Use the standalone /summarize endpoint
     try {
       const resp = await fetch(`${serverUrl}/summarize`, {
         method: 'POST',
@@ -490,23 +491,20 @@
         body: JSON.stringify({
           videoId: videoInfo.id,
           apiKey: settings.apiKey,
+          baseUrl: apiBaseUrl,
           model: model,
         }),
         signal: AbortSignal.timeout(300000)
       });
       if (resp.ok) {
         const data = await resp.json();
-        if (data.summary) {
-          console.log('[Hermes] Standalone mode, model:', data.model);
-          return data.summary;
-        }
+        if (data.summary) return data.summary;
       }
-      // If server returns error, fall through
       const err = await resp.json().catch(() => ({}));
       throw new Error(err.error || `HTTP ${resp.status}`);
     } catch (err) {
-      // Strategy 2: Fallback — transcript + Hermes API
-      console.log('[Hermes] Standalone failed, trying Hermes mode:', err.message);
+      // Strategy 2: Fallback — Hermes API
+      console.log('[Hermes] Standalone failed, trying Hermes:', err.message);
       return await summarizeWithHermes(videoInfo, settings);
     }
   }

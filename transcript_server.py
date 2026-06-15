@@ -64,7 +64,8 @@ class SummarizerHandler(http.server.BaseHTTPRequestHandler):
             body = self._read_body()
             video_id = body.get('videoId')
             api_key = body.get('apiKey')
-            model = body.get('model', 'openrouter/openai/gpt-4o-mini')
+            base_url = body.get('baseUrl', 'https://openrouter.ai/api/v1')
+            model = body.get('model', 'openai/gpt-4o-mini')
 
             if not video_id:
                 return self._json({"error": "Missing videoId"}, 400)
@@ -72,12 +73,8 @@ class SummarizerHandler(http.server.BaseHTTPRequestHandler):
                 return self._json({"error": "Missing apiKey"}, 400)
 
             try:
-                # Step 1: get transcript
                 transcript = self._fetch_transcript(video_id)
-
-                # Step 2: call LLM
-                summary = self._call_llm(transcript, api_key, model)
-
+                summary = self._call_llm(transcript, api_key, base_url, model)
                 self._json({
                     "video_id": video_id,
                     "summary": summary,
@@ -117,23 +114,10 @@ class SummarizerHandler(http.server.BaseHTTPRequestHandler):
 
     # ── LLM call ───────────────────────────────────────────
 
-    def _call_llm(self, transcript, api_key, model):
-        """Call an OpenAI-compatible API (OpenRouter / OpenAI / etc)."""
-        # Determine the API URL from the model prefix
-        if model.startswith('openrouter/'):
-            actual_model = model[len('openrouter/'):]
-            api_url = "https://openrouter.ai/api/v1/chat/completions"
-        elif model.startswith('openai/'):
-            actual_model = model[len('openai/'):]
-            api_url = "https://api.openai.com/v1/chat/completions"
-        elif model.startswith('anthropic/'):
-            actual_model = model[len('anthropic/'):]
-            # Anthropic uses a different API, proxy through OpenRouter
-            api_url = "https://openrouter.ai/api/v1/chat/completions"
-        else:
-            # Assume it's a direct model name for OpenRouter
-            actual_model = model
-            api_url = "https://openrouter.ai/api/v1/chat/completions"
+    def _call_llm(self, transcript, api_key, base_url, model):
+        """Call an OpenAI-compatible API."""
+        api_url = f"{base_url.rstrip('/')}/chat/completions"
+        actual_model = model
 
         # Build user message with transcript
         user_msg = (
