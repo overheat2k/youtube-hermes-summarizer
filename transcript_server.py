@@ -111,8 +111,16 @@ class SummarizerHandler(http.server.BaseHTTPRequestHandler):
 
         # Fallback: use youtube_transcript_api with multiple languages
         from youtube_transcript_api import YouTubeTranscriptApi
+        from youtube_transcript_api.proxies import GenericProxyConfig
         import signal
-        api = YouTubeTranscriptApi()
+
+        # Use system proxy if available
+        proxy = os.environ.get('https_proxy') or os.environ.get('HTTPS_PROXY') or ''
+        if proxy:
+            proxy_config = GenericProxyConfig(https_url=proxy)
+            api = YouTubeTranscriptApi(proxy_config=proxy_config)
+        else:
+            api = YouTubeTranscriptApi()
 
         class TimeoutError(Exception):
             pass
