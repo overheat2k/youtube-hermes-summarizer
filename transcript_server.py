@@ -111,26 +111,40 @@ class SummarizerHandler(http.server.BaseHTTPRequestHandler):
 
         # Fallback: use youtube_transcript_api with multiple languages
         from youtube_transcript_api import YouTubeTranscriptApi
+        import signal
         api = YouTubeTranscriptApi()
-        # Try common languages, fallback to any available
-        for langs in (['zh-Hans', 'zh', 'en', 'ja'], None):
-            try:
-                if langs is None:
-                    # Fetch any available language
-                    transcript = api.fetch(video_id)
-                else:
-                    transcript = api.fetch(video_id, languages=langs)
-                lines = []
-                for entry in transcript:
-                    start = int(entry.start)
-                    minutes = start // 60
-                    seconds = start % 60
-                    lines.append(f"{minutes}:{seconds:02d} {entry.text}")
-                return "\n".join(lines)
-            except Exception:
-                if langs is None:
-                    raise
-        raise
+
+        class TimeoutError(Exception):
+            pass
+
+        def handler(signum, frame):
+            raise TimeoutError("获取字幕超时 (30s)")
+
+        old_handler = signal.signal(signal.SIGALRM, handler)
+        signal.alarm(30)
+
+        try:
+            # Try common languages, fallback to any available
+            for langs in (['zh-Hans', 'zh', 'en', 'ja'], None):
+                try:
+                    if langs is None:
+                        transcript = api.fetch(video_id)
+                    else:
+                        transcript = api.fetch(video_id, languages=langs)
+                    lines = []
+                    for entry in transcript:
+                        start = int(entry.start)
+                        minutes = start // 60
+                        seconds = start % 60
+                        lines.append(f"{minutes}:{seconds:02d} {entry.text}")
+                    return "\n".join(lines)
+                except Exception:
+                    if langs is None:
+                        raise
+            raise
+        finally:
+            signal.alarm(0)
+            signal.signal(signal.SIGALRM, old_handler)
 
     # ── LLM call ───────────────────────────────────────────
 
